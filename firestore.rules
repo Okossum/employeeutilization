@@ -1,0 +1,86 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if request is from service account/Cloud Function
+    function isServiceAccount() {
+      return request.auth.token.firebase.sign_in_provider == 'custom';
+    }
+    
+    // Helper function to validate audit fields on create
+    function hasValidAuditFields() {
+      return request.resource.data.keys().hasAll(['createdAt', 'createdBy', 'updatedAt', 'updatedBy']) &&
+             request.resource.data.createdBy == request.auth.uid &&
+             request.resource.data.updatedBy == request.auth.uid &&
+             request.resource.data.createdAt == request.time &&
+             request.resource.data.updatedAt == request.time;
+    }
+    
+    // Helper function to validate audit fields on update
+    function hasValidUpdateAuditFields() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt', 'updatedBy']) &&
+             request.resource.data.updatedBy == request.auth.uid &&
+             request.resource.data.updatedAt == request.time &&
+             request.resource.data.createdAt == resource.data.createdAt &&
+             request.resource.data.createdBy == resource.data.createdBy;
+    }
+
+    // Employees collection - read only for authenticated users
+    match /employees/{employeeId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Only allow writes through Cloud Functions or admin
+    }
+
+    // Plans collection - read for authenticated users, write for service accounts
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+      
+      // Plan entries subcollection
+      match /entries/{entryId} {
+        allow read: if isAuthenticated();
+        allow write: if isServiceAccount();
+      }
+    }
+
+    // Workloads collection - read for authenticated users, write for service accounts
+    match /workloads/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isServiceAccount();
+      
+      // Workload entries subcollection
+      match /entries/{entryId} {
+        allow read: if isAuthenticated();
+        allow write: if isServiceAccount();
+      }
+    }
+
+    // Aliases collection - read/write for authenticated users with audit fields
+    match /aliases/{aliasId} {
+      allow read: if isAuthenticated();
+      
+      // Create: require audit fields with correct user ID
+      allow create: if isAuthenticated() && hasValidAuditFields();
+      
+      // Update: allow if user owns the alias and audit fields are correct
+      allow update: if isAuthenticated() && 
+                   resource.data.createdBy == request.auth.uid &&
+                   hasValidUpdateAuditFields();
+      
+      // Delete: allow if user owns the alias
+      allow delete: if isAuthenticated() && 
+                   resource.data.createdBy == request.auth.uid;
+    }
+
+    // Deny all other paths by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

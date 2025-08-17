@@ -1,10 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onMitarbeiterXlsxUploaded = exports.parseMitarbeiterXlsx = void 0;
+exports.onMitarbeiterXlsxUploaded = exports.onWorkloadXlsxUploaded = exports.onEinsatzplanXlsxUploaded = exports.parseMitarbeiterXlsx = void 0;
 const storage_1 = require("firebase-functions/v2/storage");
 const firebase_functions_1 = require("firebase-functions");
 const parseMitarbeiterXlsx_1 = require("./parseMitarbeiterXlsx");
 Object.defineProperty(exports, "parseMitarbeiterXlsx", { enumerable: true, get: function () { return parseMitarbeiterXlsx_1.parseMitarbeiterXlsx; } });
+const onEinsatzplanXlsxUploaded_1 = require("./onEinsatzplanXlsxUploaded");
+Object.defineProperty(exports, "onEinsatzplanXlsxUploaded", { enumerable: true, get: function () { return onEinsatzplanXlsxUploaded_1.onEinsatzplanXlsxUploaded; } });
+const onWorkloadXlsxUploaded_1 = require("./onWorkloadXlsxUploaded");
+Object.defineProperty(exports, "onWorkloadXlsxUploaded", { enumerable: true, get: function () { return onWorkloadXlsxUploaded_1.onWorkloadXlsxUploaded; } });
 // Storage Trigger für Mitarbeiter-XLSX-Dateien
 exports.onMitarbeiterXlsxUploaded = (0, storage_1.onObjectFinalized)({
     bucket: process.env.FIREBASE_STORAGE_BUCKET,

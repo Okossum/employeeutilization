@@ -1,0 +1,6 @@
+Name,CC,LoB,Bereich,Team,Geschäftsstelle,akt. Einsatzort,LBS,Kompetenz,Angeboten bei,Staffbar,OV,OP,Proj,NKV (%),Ort,Proj.1,NKV (%).1,Ort.1,Proj.2,NKV (%).2,Ort.2
+"Koss, Oliver",CC AT-MUC CON,Technology,IT Development,Frontend Team,München,München,Senior,React TypeScript,Client A,true,OV123,OP456,Project Alpha,25,Munich,Project Beta,30,Munich,Project Gamma,0,Munich
+"Müller, Anna",CC AT-MUC CON,Consulting,Business Analysis,BA Team,München,Wien,Manager,SAP Business,Client B,true,OV124,OP457,Project Delta,50,Vienna,Project Epsilon,,Vienna,Project Zeta,75,Remote
+"Schmidt, Thomas",CC DE-BER DEV,Technology,Backend Development,API Team,Berlin,Berlin,Principal,Java Spring,Client C,false,OV125,OP458,Project Theta,0,Berlin,Project Iota,100,Berlin,Project Kappa,25,Berlin
+"Weiß, Julia",CC DE-BER DEV,Technology,Data Science,ML Team,Berlin,Remote,Senior,Python ML,Client D,true,OV126,OP459,Project Lambda,45,Remote,Project Mu,20,Remote,,40,Remote
+"Duplicate, Test",CC AT-MUC CON,Technology,Testing,QA Team,München,München,Junior,Test Automation,Client E,true,OV127,OP460,Project Nu,60,Munich,Project Xi,80,Munich,Project Omicron,15,Munich

@@ -1,9 +1,11 @@
 import { onObjectFinalized } from 'firebase-functions/v2/storage';
 import { logger } from 'firebase-functions';
 import { parseMitarbeiterXlsx } from './parseMitarbeiterXlsx';
+import { onEinsatzplanXlsxUploaded } from './onEinsatzplanXlsxUploaded';
+import { onWorkloadXlsxUploaded } from './onWorkloadXlsxUploaded';
 
-// Export der neuen Funktion
-export { parseMitarbeiterXlsx };
+// Export der Funktionen
+export { parseMitarbeiterXlsx, onEinsatzplanXlsxUploaded, onWorkloadXlsxUploaded };
 
 // Storage Trigger für Mitarbeiter-XLSX-Dateien
 export const onMitarbeiterXlsxUploaded = onObjectFinalized({

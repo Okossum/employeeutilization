@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Cloud Storage Security Rules
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Uploads directory for Einsatzpläne
+    match /uploads/einsatzplaene/{allPaths=**} {
+      // Authenticated users can read and write Excel files
+      allow read, write: if isAuthenticated() &&
+                        (resource == null || // Allow writes to new files
+                         resource.contentType.matches('application/.*') || // Excel files
+                         resource.contentType.matches('text/.*')); // CSV/text files
+    }
+
+    // Uploads directory for Auslastung
+    match /uploads/auslastung/{allPaths=**} {
+      // Authenticated users can read and write Excel files
+      allow read, write: if isAuthenticated() &&
+                        (resource == null || // Allow writes to new files
+                         resource.contentType.matches('application/.*') || // Excel files
+                         resource.contentType.matches('text/.*')); // CSV/text files
+    }
+    
+    // Deny all other paths by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

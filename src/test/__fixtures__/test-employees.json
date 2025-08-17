@@ -1,0 +1,63 @@
+[
+  {
+    "id": "koss|oliver|cc at-muc con",
+    "normalizedName": "koss|oliver",
+    "competenceCenter": "CC AT-MUC CON",
+    "firstName": "Oliver",
+    "lastName": "Koss",
+    "email": "oliver.koss@company.com",
+    "department": "IT",
+    "grade": "Senior",
+    "skills": ["JavaScript", "TypeScript", "React"]
+  },
+  {
+    "normalizedName": "mueller|anna",
+    "competenceCenter": "CC AT-MUC CON", 
+    "firstName": "Anna",
+    "lastName": "Müller",
+    "email": "anna.mueller@company.com",
+    "department": "Consulting",
+    "grade": "Manager",
+    "skills": ["Project Management", "SAP"]
+  },
+  {
+    "normalizedName": "schmidt|thomas",
+    "competenceCenter": "CC DE-BER DEV",
+    "firstName": "Thomas", 
+    "lastName": "Schmidt",
+    "email": "thomas.schmidt@company.com",
+    "department": "Development",
+    "grade": "Principal",
+    "skills": ["Java", "Spring", "Architecture"]
+  },
+  {
+    "normalizedName": "weiss|julia",
+    "competenceCenter": "CC DE-BER DEV",
+    "firstName": "Julia",
+    "lastName": "Weiß", 
+    "email": "julia.weiss@company.com",
+    "department": "Development",
+    "grade": "Senior",
+    "skills": ["Python", "Machine Learning"]
+  },
+  {
+    "normalizedName": "duplicate|test",
+    "competenceCenter": "CC AT-MUC CON",
+    "firstName": "Test", 
+    "lastName": "Duplicate",
+    "email": "test1@company.com",
+    "department": "IT",
+    "grade": "Junior",
+    "skills": ["Testing"]
+  },
+  {
+    "normalizedName": "duplicate|test", 
+    "competenceCenter": "CC AT-MUC CON",
+    "firstName": "Test",
+    "lastName": "Duplicate",
+    "email": "test2@company.com", 
+    "department": "IT",
+    "grade": "Junior",
+    "skills": ["Testing"]
+  }
+]

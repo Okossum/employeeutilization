@@ -1,0 +1,467 @@
+"use strict";
+/**
+ * Firebase Cloud Function to import Excel "Auslastung operativ" files
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.onWorkloadXlsxUploaded = void 0;
+exports.parseKWHeader = parseKWHeader;
+const storage_1 = require("firebase-functions/v2/storage");
+const firebase_functions_1 = require("firebase-functions");
+const storage_2 = require("firebase-admin/storage");
+const firestore_1 = require("firebase-admin/firestore");
+const app_1 = require("firebase-admin/app");
+const XLSX = require("xlsx");
+const normalize_1 = require("./lib/normalize");
+// Initialize Firebase Admin (if not already initialized)
+try {
+    (0, app_1.initializeApp)();
+}
+catch (error) {
+    // App already initialized
+}
+const storage = (0, storage_2.getStorage)();
+const db = (0, firestore_1.getFirestore)();
+/**
+ * Parses a header cell to extract ISO week number from "KW XX" or "KW YY/XX" format
+ * @param headerValue - Header value like "KW 33", "KW33", "KW 25/01", etc.
+ * @returns ISO week number or null if not a valid KW header
+ */
+function parseKWHeader(headerValue) {
+    if (!headerValue || typeof headerValue !== 'string') {
+        return null;
+    }
+    const trimmed = headerValue.trim();
+    // Format 1: "KW XX" (e.g., "KW 33")
+    const kwMatch1 = trimmed.match(/^KW\s*(\d+)$/i);
+    if (kwMatch1) {
+        const weekNum = parseInt(kwMatch1[1], 10);
+        return (weekNum >= 1 && weekNum <= 53) ? weekNum : null;
+    }
+    // Format 2: "KW YY/XX" (e.g., "KW 25/01") - use the week part (XX)
+    const kwMatch2 = trimmed.match(/^KW\s*(\d+)\/(\d+)$/i);
+    if (kwMatch2) {
+        const weekNum = parseInt(kwMatch2[2], 10); // Use the week part (second number)
+        return (weekNum >= 1 && weekNum <= 53) ? weekNum : null;
+    }
+    return null;
+}
+/**
+ * Finds KW (calendar week) columns in headers and returns their indices with week numbers
+ * @param headers - Array of header strings from row 3
+ * @returns Array of objects with column index and ISO week number
+ */
+function findKWColumns(headers) {
+    const kwColumns = [];
+    firebase_functions_1.logger.info('🔍 [findKWColumns] Analyzing headers:', headers);
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const weekNum = parseKWHeader(header);
+        firebase_functions_1.logger.info(`🔍 [findKWColumns] Header ${i}: "${header}" -> week: ${weekNum}`);
+        if (weekNum !== null) {
+            kwColumns.push({ index: i, isoWeek: weekNum });
+            firebase_functions_1.logger.info(`✅ [findKWColumns] Added KW column: index ${i}, week ${weekNum}`);
+        }
+    }
+    firebase_functions_1.logger.info(`📊 [findKWColumns] Found ${kwColumns.length} KW columns:`, kwColumns);
+    return kwColumns;
+}
+/**
+ * Parses numeric value from cell, returns 0 for empty cells, null for invalid values
+ * @param value - Cell value to parse
+ * @returns Parsed number, 0 for empty, null for invalid
+ */
+function parseHoursValue(value) {
+    if (value === null || value === undefined || value === '') {
+        return 0; // Empty cells are 0 hours
+    }
+    const num = typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'));
+    return isNaN(num) ? null : num;
+}
+/**
+ * Parses string value from cell, returns null if empty
+ * @param value - Cell value to parse
+ * @returns Trimmed string or null
+ */
+function parseStringValue(value) {
+    if (value === null || value === undefined || value === '') {
+        return null;
+    }
+    const trimmed = String(value).trim();
+    return trimmed === '' ? null : trimmed;
+}
+/**
+ * Matches employee against database using the specified order:
+ * 1. Check aliases/{normalizedName|exactCC}
+ * 2. Query employees by normalizedName and competenceCenter
+ * 3. Optional: Legacy doc-id direct lookup
+ */
+async function matchEmployee(normalizedName, competenceCenter) {
+    try {
+        // 1. Check for alias first
+        const aliasId = (0, normalize_1.createAliasDocId)(normalizedName, competenceCenter);
+        const aliasDoc = await db.collection('aliases').doc(aliasId).get();
+        if (aliasDoc.exists) {
+            const aliasData = aliasDoc.data();
+            return {
+                status: 'matched',
+                employeeIds: [aliasData.employeeId],
+                chosenEmployeeId: aliasData.employeeId
+            };
+        }
+        // 2. Query employees by normalizedName and competenceCenter
+        const employeesQuery = await db.collection('employees')
+            .where('normalizedName', '==', normalizedName)
+            .where('competenceCenter', '==', competenceCenter)
+            .get();
+        const employeeIds = employeesQuery.docs.map(doc => doc.id);
+        if (employeeIds.length === 0) {
+            // 3. Optional: Try legacy doc ID format as fallback
+            const legacyDocId = `${normalizedName}|${competenceCenter.toLowerCase().trim()}`;
+            const legacyDoc = await db.collection('employees').doc(legacyDocId).get();
+            if (legacyDoc.exists) {
+                return {
+                    status: 'matched',
+                    employeeIds: [legacyDocId],
+                    chosenEmployeeId: legacyDocId
+                };
+            }
+            return {
+                status: 'unmatched',
+                employeeIds: []
+            };
+        }
+        else if (employeeIds.length === 1) {
+            return {
+                status: 'matched',
+                employeeIds,
+                chosenEmployeeId: employeeIds[0]
+            };
+        }
+        else {
+            return {
+                status: 'duplicate',
+                employeeIds
+            };
+        }
+    }
+    catch (error) {
+        firebase_functions_1.logger.error(`Error matching employee ${normalizedName}|${competenceCenter}:`, error);
+        return {
+            status: 'unmatched',
+            employeeIds: []
+        };
+    }
+}
+/**
+ * Processes a single data row from the Excel sheet
+ */
+async function processRow(row, headers, kwColumns, currentYear) {
+    try {
+        // Get columns based on fixed positions (A=0, B=1, C=2, D=3, E=4)
+        const businessLineIdx = 0; // Spalte A: Business Line / LoB
+        const bereichIdx = 1; // Spalte B: Business Unit / Bereich
+        const ccIdx = 2; // Spalte C: Competence Center / CC
+        const teamIdx = 3; // Spalte D: Team (optional/leer möglich)
+        const employeeIdx = 4; // Spalte E: Name (z.B. Müller, Christian)
+        // Extract and validate business line
+        const businessLineValue = parseStringValue(row[businessLineIdx]);
+        if (!businessLineValue) {
+            return { entry: null, error: 'Missing business line value' };
+        }
+        // Extract and validate bereich
+        const bereichValue = parseStringValue(row[bereichIdx]);
+        if (!bereichValue) {
+            return { entry: null, error: 'Missing bereich value' };
+        }
+        // Extract and validate competence center
+        const ccValue = parseStringValue(row[ccIdx]);
+        if (!ccValue) {
+            return { entry: null, error: 'Missing competence center' };
+        }
+        const competenceCenter = ccValue.trim();
+        // Extract team (optional)
+        const teamValue = parseStringValue(row[teamIdx]);
+        // Extract and validate employee name
+        const nameValue = parseStringValue(row[employeeIdx]);
+        if (!nameValue) {
+            return { entry: null, error: 'Missing employee name' };
+        }
+        // Parse name in "Last, First" format
+        let nameInfo;
+        try {
+            nameInfo = (0, normalize_1.parseAndNormalizeName)(nameValue);
+        }
+        catch (error) {
+            return { entry: null, error: `Invalid name format: ${error}` };
+        }
+        // Set other fields (not available in this structure)
+        const businessLine = businessLineValue;
+        const bereich = bereichValue;
+        const team = teamValue;
+        const location = null; // Not available in this structure
+        const grade = null; // Not available in this structure
+        const project = null; // Not available in this structure
+        const customer = null; // Not available in this structure
+        // Process weekly percent from KW columns (starting from column F, index 5)
+        const weeklyPercent = [];
+        for (const kwCol of kwColumns) {
+            // KW columns start from index 5 (column F), not from kwCol.index
+            const actualColumnIndex = kwCol.index + 5;
+            const percent = parseHoursValue(row[actualColumnIndex]);
+            if (percent !== null) {
+                weeklyPercent.push({
+                    isoYear: currentYear,
+                    isoWeek: kwCol.isoWeek,
+                    percent
+                });
+            }
+        }
+        // Match employee
+        const match = await matchEmployee(nameInfo.normalizedName, competenceCenter);
+        // Create workload entry
+        const entry = {
+            normalizedName: nameInfo.normalizedName,
+            competenceCenter,
+            rawName: nameInfo.rawName,
+            businessLine,
+            bereich,
+            team,
+            location,
+            grade,
+            project,
+            customer,
+            weeklyPercent,
+            sumPercent: 0,
+            match,
+            createdAt: firestore_1.FieldValue.serverTimestamp(),
+            updatedAt: firestore_1.FieldValue.serverTimestamp()
+        };
+        return { entry };
+    }
+    catch (error) {
+        return { entry: null, error: String(error) };
+    }
+}
+/**
+ * Creates a document ID for workload entries
+ * @param normalizedName - Normalized name key
+ * @param competenceCenter - Exact competence center (trimmed only)
+ * @returns Document ID in format "normalizedname|competencecenter"
+ */
+function createWorkloadEntryDocId(normalizedName, competenceCenter) {
+    return `${normalizedName}|${competenceCenter}`;
+}
+/**
+ * Main function to process Workload XLSX upload
+ */
+exports.onWorkloadXlsxUploaded = (0, storage_1.onObjectFinalized)({
+    bucket: process.env.FIREBASE_STORAGE_BUCKET,
+    region: 'europe-west1',
+    memory: '512MiB',
+    timeoutSeconds: 540,
+}, async (event) => {
+    const filePath = event.data.name;
+    const bucket = event.data.bucket;
+    const startTime = Date.now();
+    firebase_functions_1.logger.info('🚀 [onWorkloadXlsxUploaded] Function triggered', {
+        filePath,
+        bucket,
+        eventId: event.id,
+        timestamp: new Date().toISOString()
+    });
+    // Check if it's a workload XLSX file in the correct path
+    if (!filePath || !filePath.match(/^uploads\/auslastung\/[^\/]+\/.*\.xlsx$/i)) {
+        firebase_functions_1.logger.info('⏭️ [onWorkloadXlsxUploaded] Skipping non-workload file', {
+            filePath,
+            reason: 'Path does not match pattern: uploads/auslastung/{userId}/*.xlsx'
+        });
+        return;
+    }
+    firebase_functions_1.logger.info('✅ [onWorkloadXlsxUploaded] File path validated, starting processing', {
+        filePath,
+        pattern: 'uploads/auslastung/{userId}/*.xlsx'
+    });
+    try {
+        // Download file from Storage
+        firebase_functions_1.logger.info('📥 [onWorkloadXlsxUploaded] Downloading file from Storage', { filePath });
+        const file = storage.bucket(bucket).file(filePath);
+        const [fileBuffer] = await file.download();
+        firebase_functions_1.logger.info('📊 [onWorkloadXlsxUploaded] File downloaded successfully', {
+            fileSize: fileBuffer.length,
+            fileSizeMB: Math.round(fileBuffer.length / 1024 / 1024 * 100) / 100
+        });
+        // Parse XLSX
+        firebase_functions_1.logger.info('📋 [onWorkloadXlsxUploaded] Parsing XLSX file');
+        const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+        firebase_functions_1.logger.info('📑 [onWorkloadXlsxUploaded] Workbook parsed', {
+            sheetNames: Object.keys(workbook.Sheets),
+            sheetCount: Object.keys(workbook.Sheets).length
+        });
+        // Get "Export" sheet
+        const sheetName = 'Export';
+        const worksheet = workbook.Sheets[sheetName];
+        if (!worksheet) {
+            const availableSheets = Object.keys(workbook.Sheets);
+            firebase_functions_1.logger.error('❌ [onWorkloadXlsxUploaded] Required sheet not found', {
+                requiredSheet: sheetName,
+                availableSheets
+            });
+            throw new Error(`Sheet "${sheetName}" not found. Available sheets: ${availableSheets.join(', ')}`);
+        }
+        firebase_functions_1.logger.info('✅ [onWorkloadXlsxUploaded] Found required sheet', { sheetName });
+        // Convert to array of arrays
+        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+        firebase_functions_1.logger.info('📋 [onWorkloadXlsxUploaded] Sheet converted to data array', {
+            totalRows: data.length,
+            dataPreview: data.slice(0, 3).map((row, i) => ({ row: i + 1, data: row }))
+        });
+        if (data.length < 3) {
+            firebase_functions_1.logger.error('❌ [onWorkloadXlsxUploaded] Insufficient rows in sheet', {
+                actualRows: data.length,
+                requiredRows: 3,
+                reason: 'Headers must be in row 3'
+            });
+            throw new Error('Sheet must have at least 3 rows (headers in row 3)');
+        }
+        // Get headers from row 3 (index 2)
+        const headers = data[2].map(h => String(h || '').trim());
+        firebase_functions_1.logger.info('🏷️ [onWorkloadXlsxUploaded] Headers extracted from row 3', {
+            headers,
+            headerCount: headers.length
+        });
+        // Find KW columns
+        const kwColumns = findKWColumns(headers);
+        const weeksCount = kwColumns.length;
+        firebase_functions_1.logger.info('📅 [onWorkloadXlsxUploaded] KW columns analysis', {
+            kwColumns: kwColumns.map(kw => ({ index: kw.index, header: headers[kw.index], isoWeek: kw.isoWeek })),
+            weeksCount
+        });
+        if (weeksCount === 0) {
+            firebase_functions_1.logger.error('❌ [onWorkloadXlsxUploaded] No KW columns found', {
+                headers,
+                searchPattern: 'KW XX format'
+            });
+            throw new Error('No KW (calendar week) columns found in headers');
+        }
+        firebase_functions_1.logger.info(`✅ [onWorkloadXlsxUploaded] Found ${weeksCount} KW columns:`, kwColumns.map(kw => `KW ${kw.isoWeek} at index ${kw.index}`));
+        // Determine plan year and week from file timestamp or first KW column
+        const currentYear = new Date().getFullYear();
+        const firstWeek = kwColumns[0].isoWeek;
+        // Create plan document
+        const planId = `${currentYear}-W${firstWeek.toString().padStart(2, '0')}-${Date.now()}`;
+        const planData = {
+            planWeek: firstWeek,
+            planYear: currentYear,
+            generatedAt: firestore_1.FieldValue.serverTimestamp(),
+            sourcePath: filePath,
+            weeksCount,
+            displayWeeks: 8,
+            importStats: {
+                matched: 0,
+                unmatched: 0,
+                duplicates: 0,
+                total: 0
+            },
+            createdAt: firestore_1.FieldValue.serverTimestamp(),
+            updatedAt: firestore_1.FieldValue.serverTimestamp()
+        };
+        // Process data rows (starting from row 9, index 8) - skip total rows
+        const importStats = { matched: 0, unmatched: 0, duplicates: 0, total: 0 };
+        const entries = {};
+        const errors = [];
+        for (let i = 8; i < data.length; i++) {
+            const row = data[i];
+            // Skip empty rows
+            if (!row || row.every(cell => !cell || String(cell).trim() === '')) {
+                continue;
+            }
+            importStats.total++;
+            const result = await processRow(row, headers, kwColumns, currentYear);
+            if (result.error || !result.entry) {
+                errors.push(`Row ${i + 1}: ${result.error || 'Unknown error'}`);
+                importStats.unmatched++;
+                continue;
+            }
+            const entry = result.entry;
+            const docId = createWorkloadEntryDocId(entry.normalizedName, entry.competenceCenter);
+            // Check for duplicates within the file
+            if (entries[docId]) {
+                errors.push(`Row ${i + 1}: Duplicate entry for ${entry.rawName} (${entry.competenceCenter})`);
+                importStats.duplicates++;
+                continue;
+            }
+            entries[docId] = entry;
+            // Update stats based on match status
+            switch (entry.match.status) {
+                case 'matched':
+                    importStats.matched++;
+                    break;
+                case 'unmatched':
+                    importStats.unmatched++;
+                    break;
+                case 'duplicate':
+                    importStats.duplicates++;
+                    break;
+            }
+        }
+        // Update plan data with final stats
+        planData.importStats = importStats;
+        // Write to Firestore in batches
+        const BATCH_SIZE = 100;
+        const planRef = db.collection('workloads').doc(planId);
+        const entriesCollection = planRef.collection('entries');
+        // First write the plan document
+        await planRef.set(planData);
+        firebase_functions_1.logger.info(`Workload plan document created: ${planId}`);
+        // Write entry documents in batches
+        const entryEntries = Object.entries(entries);
+        for (let i = 0; i < entryEntries.length; i += BATCH_SIZE) {
+            const batch = db.batch();
+            const currentBatch = entryEntries.slice(i, i + BATCH_SIZE);
+            currentBatch.forEach(([docId, entry]) => {
+                const entryRef = entriesCollection.doc(docId);
+                batch.set(entryRef, entry);
+            });
+            await batch.commit();
+            firebase_functions_1.logger.info(`Batch ${Math.floor(i / BATCH_SIZE) + 1}: Committed ${currentBatch.length} workload entries`);
+        }
+        firebase_functions_1.logger.info(`All batches committed. Total workload entries: ${entryEntries.length}`);
+        const processingTime = Date.now() - startTime;
+        // Log results
+        firebase_functions_1.logger.info('🎉 [onWorkloadXlsxUploaded] Processing completed successfully', {
+            planId,
+            processingTimeMs: processingTime,
+            processingTimeSec: Math.round(processingTime / 1000 * 100) / 100,
+            statistics: {
+                totalRows: importStats.total,
+                matched: importStats.matched,
+                unmatched: importStats.unmatched,
+                duplicates: importStats.duplicates,
+                successRate: Math.round((importStats.matched / importStats.total) * 100)
+            },
+            dataWritten: {
+                planDocument: 1,
+                entryDocuments: entryEntries.length,
+                totalBatches: Math.ceil(entryEntries.length / BATCH_SIZE)
+            }
+        });
+        if (errors.length > 0) {
+            firebase_functions_1.logger.warn(`⚠️ [onWorkloadXlsxUploaded] Processing errors encountered`, {
+                errorCount: errors.length,
+                errors: errors.slice(0, 10), // Log first 10 errors
+                totalErrors: errors.length
+            });
+        }
+    }
+    catch (error) {
+        const processingTime = Date.now() - startTime;
+        firebase_functions_1.logger.error('💥 [onWorkloadXlsxUploaded] Fatal error during processing', {
+            filePath,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            processingTimeMs: processingTime
+        });
+        throw error;
+    }
+});
+//# sourceMappingURL=onWorkloadXlsxUploaded.js.map
