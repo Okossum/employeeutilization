@@ -32,3 +32,4 @@ export const onMitarbeiterXlsxUploaded = onObjectFinalized({
     logger.info(`Skipping non-Mitarbeiter file: ${filePath}`);
   }
 });
+// Deploy timestamp: Sun Aug 17 13:50:35 CEST 2025

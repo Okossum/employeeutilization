@@ -31,4 +31,5 @@ exports.onMitarbeiterXlsxUploaded = (0, storage_1.onObjectFinalized)({
         firebase_functions_1.logger.info(`Skipping non-Mitarbeiter file: ${filePath}`);
     }
 });
+// Deploy timestamp: Sun Aug 17 13:50:35 CEST 2025
 //# sourceMappingURL=index.js.map

@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.normalizeString = normalizeString;
+exports.normalizeStringUpperCase = normalizeStringUpperCase;
+exports.normalizeStringTitleCase = normalizeStringTitleCase;
 exports.normalizeStringRemoveDiacritics = normalizeStringRemoveDiacritics;
 exports.parseBooleanDe = parseBooleanDe;
 exports.parseDateDe = parseDateDe;
@@ -21,6 +23,22 @@ function normalizeString(value) {
     if (!value || typeof value !== 'string')
         return '';
     return value.trim().replace(/\s+/g, ' ');
+}
+/**
+ * Normalisiert einen String zu GROSSBUCHSTABEN
+ */
+function normalizeStringUpperCase(value) {
+    if (!value || typeof value !== 'string')
+        return '';
+    return value.trim().replace(/\s+/g, ' ').toUpperCase();
+}
+/**
+ * Normalisiert einen String zu Title Case (erster Buchstabe jedes Wortes groß)
+ */
+function normalizeStringTitleCase(value) {
+    if (!value || typeof value !== 'string')
+        return '';
+    return value.trim().replace(/\s+/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 }
 /**
  * Normalisiert einen String und entfernt Diakritika
@@ -89,15 +107,16 @@ function normalizeMitarbeiterRow(row) {
         lastName: normalizeString(row.Nachname || ''),
         email: normalizeString(row['E-Mail'] || '').toLowerCase(),
         company: normalizeString(row.Firma || ''),
-        businessLine: normalizeString(row['Business Line'] || ''),
-        competenceCenter: normalizeString(row['Competence Center'] || ''),
-        teamName: normalizeString(row.Teamname || ''),
+        businessLine: normalizeString(row['Business Line'] || ''), // Behalte Original-Formatierung
+        bereich: normalizeString(row.Bereich || row['Bereich'] || ''), // Leer falls nicht vorhanden
+        competenceCenter: normalizeString(row['Competence Center'] || ''), // Behalte Original-Formatierung
+        teamName: normalizeString(row.Teamname || row['Team Name'] || row.Team || ''), // Behalte Original-Formatierung
         location: normalizeString(row.Standort || ''),
-        grade: normalizeString(row.Karrierestufe || ''),
-        experienceSinceYear: parseNumber(row['Erfahrung seit Jahr']),
+        grade: normalizeString(row.Karrierestufe || ''), // Behalte Original-Formatierung
+        experienceSinceYear: parseNumber(row['Erfahrung seit Jahr'] || row['IT seit'] || row['Experience Since Year'] || ''),
         availableFrom: parseDateDe(row['Verfügbar ab']),
         availableForStaffing: parseBooleanDe(row['Verfügbar für Staffing']),
-        profileUrl: normalizeString(row['Link zum Profil'] || ''),
+        profileUrl: normalizeString(row['Link zum Profil'] || ''), // Sollte die URL korrekt übernehmen
     };
 }
 /**

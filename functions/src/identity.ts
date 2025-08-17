@@ -19,25 +19,29 @@ export type EmployeeCore = {
   competenceCenter: string;
   businessLine?: string; 
   businessUnit?: string; 
-  team?: string; 
+  bereich?: string;
+  teamName?: string; 
   grade?: string;
   company?: string; 
   location?: string; 
   email?: string | null;
+  profileUrl?: string;
 };
 
 export const buildEmployeeDoc = (core: EmployeeCore) => ({
   firstName: core.firstName?.trim() ?? "",
   lastName:  core.lastName?.trim() ?? "",
   normalizedName: nameKey(core.firstName, core.lastName),
-  competenceCenter: norm(core.competenceCenter),
-  businessLine: core.businessLine ? norm(core.businessLine) : null,
-  businessUnit: core.businessUnit ? norm(core.businessUnit) : null,
-  team: core.team ? norm(core.team) : null,
-  grade: core.grade ? norm(core.grade) : null,
+  competenceCenter: core.competenceCenter?.trim() ?? "", // Behalte Original-Formatierung
+  businessLine: core.businessLine?.trim() ?? "", // Behalte Original-Formatierung
+  businessUnit: core.businessUnit?.trim() ?? "", // Behalte Original-Formatierung
+  bereich: core.bereich?.trim() ?? "", // Behalte Original-Formatierung
+  teamName: core.teamName?.trim() ?? "", // Behalte Original-Formatierung
+  grade: core.grade?.trim() ?? "", // Behalte Original-Formatierung
   company: core.company ?? null,
   location: core.location ?? null,
   email: core.email ? core.email.trim().toLowerCase() : null,
+  profileUrl: core.profileUrl?.trim() ?? null,
   active: true,
   updatedAt: null, // Wird später mit FieldValue.serverTimestamp() ersetzt
 });

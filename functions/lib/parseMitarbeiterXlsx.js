@@ -69,6 +69,11 @@ async function parseMitarbeiterXlsx(bucketName, filePath) {
             }
         }
         firebase_functions_1.logger.info(`Extracted ${data.length} data rows`);
+        // Debug: Log erste Zeile um Spalten zu sehen
+        if (data.length > 0) {
+            firebase_functions_1.logger.info('First row data:', JSON.stringify(data[0]));
+            firebase_functions_1.logger.info('Available columns:', Object.keys(data[0]));
+        }
         // Jede Zeile verarbeiten
         const sourceFileId = generateSourceFileId(filePath);
         for (let i = 0; i < data.length; i++) {
@@ -139,6 +144,7 @@ async function processMitarbeiterRow(rowData, rowIndex, sourceFileId) {
     const teamName = String(rowData.Teamname || '').trim();
     const location = String(rowData.Standort || '').trim();
     const grade = String(rowData.Karrierestufe || '').trim();
+    const profileUrl = String(rowData['Link zum Profil'] || '').trim();
     if (!firstName || !lastName) {
         firebase_functions_1.logger.warn(`Row ${rowIndex}: Missing firstName or lastName, skipping employee creation`);
         return;
@@ -152,11 +158,12 @@ async function processMitarbeiterRow(rowData, rowIndex, sourceFileId) {
         competenceCenter,
         businessLine: businessLine || undefined,
         businessUnit: businessUnit || undefined,
-        team: teamName || undefined,
+        teamName: teamName || undefined,
         grade: grade || undefined,
         company: company || undefined,
         location: location || undefined,
-        email
+        email,
+        profileUrl: profileUrl || undefined
     };
     const employeeDoc = (0, identity_1.buildEmployeeDoc)(employeeCore);
     // updatedAt mit serverTimestamp setzen

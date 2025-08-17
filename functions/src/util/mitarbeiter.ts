@@ -27,6 +27,7 @@ export interface NormalizedMitarbeiter {
   email: string;
   company: string;
   businessLine: string;
+  bereich: string;
   competenceCenter: string;
   teamName: string;
   location: string;
@@ -72,6 +73,24 @@ export interface EmployeeDocument {
 export function normalizeString(value: string): string {
   if (!value || typeof value !== 'string') return '';
   return value.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Normalisiert einen String zu GROSSBUCHSTABEN
+ */
+export function normalizeStringUpperCase(value: string): string {
+  if (!value || typeof value !== 'string') return '';
+  return value.trim().replace(/\s+/g, ' ').toUpperCase();
+}
+
+/**
+ * Normalisiert einen String zu Title Case (erster Buchstabe jedes Wortes groß)
+ */
+export function normalizeStringTitleCase(value: string): string {
+  if (!value || typeof value !== 'string') return '';
+  return value.trim().replace(/\s+/g, ' ').split(' ').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
 }
 
 /**
@@ -146,15 +165,16 @@ export function normalizeMitarbeiterRow(row: any): NormalizedMitarbeiter {
     lastName: normalizeString(row.Nachname || ''),
     email: normalizeString(row['E-Mail'] || '').toLowerCase(),
     company: normalizeString(row.Firma || ''),
-    businessLine: normalizeString(row['Business Line'] || ''),
-    competenceCenter: normalizeString(row['Competence Center'] || ''),
-    teamName: normalizeString(row.Teamname || ''),
+    businessLine: normalizeString(row['Business Line'] || ''), // Behalte Original-Formatierung
+    bereich: normalizeString(row.Bereich || row['Bereich'] || ''), // Leer falls nicht vorhanden
+    competenceCenter: normalizeString(row['Competence Center'] || ''), // Behalte Original-Formatierung
+    teamName: normalizeString(row.Teamname || row['Team Name'] || row.Team || ''), // Behalte Original-Formatierung
     location: normalizeString(row.Standort || ''),
-    grade: normalizeString(row.Karrierestufe || ''),
-    experienceSinceYear: parseNumber(row['Erfahrung seit Jahr']),
+    grade: normalizeString(row.Karrierestufe || ''), // Behalte Original-Formatierung
+    experienceSinceYear: parseNumber(row['Erfahrung seit Jahr'] || row['IT seit'] || row['Experience Since Year'] || ''),
     availableFrom: parseDateDe(row['Verfügbar ab']),
     availableForStaffing: parseBooleanDe(row['Verfügbar für Staffing']),
-    profileUrl: normalizeString(row['Link zum Profil'] || ''),
+    profileUrl: normalizeString(row['Link zum Profil'] || ''), // Sollte die URL korrekt übernehmen
   };
 }
 

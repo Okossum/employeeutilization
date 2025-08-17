@@ -90,6 +90,12 @@ export async function parseMitarbeiterXlsx(bucketName: string, filePath: string)
     
     logger.info(`Extracted ${data.length} data rows`);
     
+    // Debug: Log erste Zeile um Spalten zu sehen
+    if (data.length > 0) {
+      logger.info('First row data:', JSON.stringify(data[0]));
+      logger.info('Available columns:', Object.keys(data[0]));
+    }
+    
     // Jede Zeile verarbeiten
     const sourceFileId = generateSourceFileId(filePath);
     
@@ -171,6 +177,7 @@ async function processMitarbeiterRow(rowData: any, rowIndex: number, sourceFileI
   const teamName = String(rowData.Teamname || '').trim();
   const location = String(rowData.Standort || '').trim();
   const grade = String(rowData.Karrierestufe || '').trim();
+  const profileUrl = String(rowData['Link zum Profil'] || '').trim();
   
   if (!firstName || !lastName) {
     logger.warn(`Row ${rowIndex}: Missing firstName or lastName, skipping employee creation`);
@@ -187,11 +194,12 @@ async function processMitarbeiterRow(rowData: any, rowIndex: number, sourceFileI
     competenceCenter,
     businessLine: businessLine || undefined,
     businessUnit: businessUnit || undefined,
-    team: teamName || undefined,
+    teamName: teamName || undefined,
     grade: grade || undefined,
     company: company || undefined,
     location: location || undefined,
-    email
+    email,
+    profileUrl: profileUrl || undefined
   };
   
   const employeeDoc = buildEmployeeDoc(employeeCore);
