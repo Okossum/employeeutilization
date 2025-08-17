@@ -11,6 +11,7 @@ interface Employee {
   email: string;
   company: string;
   businessLine: string;
+  bereich: string;
   competenceCenter: string;
   teamName: string;
   location: string;
@@ -42,7 +43,7 @@ const AdminEmployees: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [competenceCenterFilter, setCompetenceCenterFilter] = useState('');
-  const [gradeFilter, setGradeFilter] = useState('');
+  const [lbsFilter, setLbsFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
   const [activeTab, setActiveTab] = useState<'all' | 'duplicates'>('all');
@@ -56,7 +57,11 @@ const AdminEmployees: React.FC = () => {
   useEffect(() => {
     if (user?.email) {
       // Einfache Admin-Erkennung - in Produktion über Firestore Rules
-      setIsAdmin(user.email.includes('admin') || user.email.includes('steward'));
+      setIsAdmin(
+        user.email.includes('admin') || 
+        user.email.includes('steward') || 
+        user.email === 'oliver.koss@adesso.de'
+      );
     }
   }, [user]);
 
@@ -93,6 +98,7 @@ const AdminEmployees: React.FC = () => {
     const groups: DuplicateGroup[] = [];
     const emailMap = new Map<string, Employee[]>();
     const nameMap = new Map<string, Employee[]>();
+    const duplicateIds = new Set<string>();
 
     employees.forEach((employee) => {
       // E-Mail-Dubletten
@@ -112,21 +118,31 @@ const AdminEmployees: React.FC = () => {
       nameMap.get(nameKey)!.push(employee);
     });
 
-    // Gruppen mit mehr als 1 Eintrag
+    // Gruppen mit mehr als 1 Eintrag und IDs sammeln
     emailMap.forEach((employees, email) => {
       if (employees.length > 1) {
         groups.push({ type: 'email', key: email, employees });
+        employees.forEach(emp => duplicateIds.add(emp.id));
       }
     });
 
     nameMap.forEach((employees, nameKey) => {
       if (employees.length > 1) {
         groups.push({ type: 'name', key: nameKey, employees });
+        employees.forEach(emp => duplicateIds.add(emp.id));
       }
     });
 
+    // Aktualisiere Employees mit duplicateHint
+    setEmployees(prevEmployees => 
+      prevEmployees.map(emp => ({
+        ...emp,
+        duplicateHint: duplicateIds.has(emp.id)
+      }))
+    );
+
     setDuplicateGroups(groups);
-  }, [employees]);
+  }, [employees.length]);
 
   // Gefilterte und durchsuchte Mitarbeiter
   const filteredEmployees = useMemo(() => {
@@ -153,13 +169,13 @@ const AdminEmployees: React.FC = () => {
       filtered = filtered.filter((emp) => emp.competenceCenter === competenceCenterFilter);
     }
 
-    // Grade Filter
-    if (gradeFilter) {
-      filtered = filtered.filter((emp) => emp.grade === gradeFilter);
+    // LBS Filter
+    if (lbsFilter) {
+      filtered = filtered.filter((emp) => emp.grade === lbsFilter);
     }
 
     return filtered;
-  }, [employees, searchTerm, activeFilter, competenceCenterFilter, gradeFilter]);
+  }, [employees, searchTerm, activeFilter, competenceCenterFilter, lbsFilter]);
 
   // Paginierung
   const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
@@ -172,7 +188,7 @@ const AdminEmployees: React.FC = () => {
     [employees]
   );
 
-  const grades = useMemo(() => 
+  const lbsValues = useMemo(() => 
     [...new Set(employees.map(emp => emp.grade).filter(Boolean))].sort(),
     [employees]
   );
@@ -209,10 +225,10 @@ const AdminEmployees: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 1400 }}>
+    <div style={{ padding: 16, width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 600 }}>Mitarbeiter-Verwaltung</h1>
-        {isAdmin && employees.length === 0 && (
+        {isAdmin && (
           <button
             onClick={createTestEmployees}
             style={{
@@ -309,17 +325,17 @@ const AdminEmployees: React.FC = () => {
         </select>
 
         <select
-          value={gradeFilter}
-          onChange={(e) => setGradeFilter(e.target.value)}
+          value={lbsFilter}
+          onChange={(e) => setLbsFilter(e.target.value)}
           style={{
             padding: '8px 12px',
             border: '1px solid #ddd',
             borderRadius: 4,
           }}
         >
-          <option value="">Alle Grade</option>
-          {grades.map((grade) => (
-            <option key={grade} value={grade}>{grade}</option>
+          <option value="">Alle LBS</option>
+          {lbsValues.map((lbs) => (
+            <option key={lbs} value={lbs}>{lbs}</option>
           ))}
         </select>
       </div>
@@ -328,17 +344,23 @@ const AdminEmployees: React.FC = () => {
       {activeTab === 'all' && (
         <div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1200 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead style={{ backgroundColor: '#f8f9fa' }}>
                 <tr>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Name</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Nachname</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Vorname</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>E-Mail</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Firma</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Business Line</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Bereich</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Competence Center</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Team</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Grade</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>LBS</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Standort</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>IT seit</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Profiler</th>
                   <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Status</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Dubletten-Hinweis</th>
+                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Hinweis</th>
                   {isAdmin && (
                     <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Aktionen</th>
                   )}
@@ -348,20 +370,34 @@ const AdminEmployees: React.FC = () => {
                 {paginatedEmployees.map((employee) => (
                   <tr key={employee.id} style={{ borderBottom: '1px solid #eee' }}>
                     <td style={{ padding: '12px' }}>
-                      <div>
-                        <div style={{ fontWeight: 500 }}>
-                          {employee.firstName} {employee.lastName}
-                        </div>
-                        {employee.duplicateHint && (
-                          <span style={{ fontSize: '12px', color: '#dc3545' }}>⚠️ Dublette</span>
-                        )}
+                      <div style={{ fontWeight: 500 }}>
+                        {employee.lastName}
                       </div>
                     </td>
+                    <td style={{ padding: '12px', color: '#666' }}>{employee.firstName}</td>
                     <td style={{ padding: '12px', color: '#666' }}>{employee.email}</td>
                     <td style={{ padding: '12px', color: '#666' }}>{employee.company}</td>
+                    <td style={{ padding: '12px', color: '#666' }}>{employee.businessLine}</td>
+                    <td style={{ padding: '12px', color: '#666' }}>{employee.bereich || '-'}</td>
                     <td style={{ padding: '12px', color: '#666' }}>{employee.competenceCenter}</td>
                     <td style={{ padding: '12px', color: '#666' }}>{employee.teamName}</td>
                     <td style={{ padding: '12px', color: '#666' }}>{employee.grade}</td>
+                    <td style={{ padding: '12px', color: '#666' }}>{employee.location}</td>
+                    <td style={{ padding: '12px', color: '#666' }}>{employee.experienceSinceYear || '-'}</td>
+                    <td style={{ padding: '12px', color: '#666' }}>
+                      {employee.profileUrl ? (
+                        <a 
+                          href={employee.profileUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ color: '#007bff', textDecoration: 'none' }}
+                        >
+                          Profil
+                        </a>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td style={{ padding: '12px' }}>
                       <span style={{
                         padding: '4px 8px',
@@ -375,7 +411,16 @@ const AdminEmployees: React.FC = () => {
                     </td>
                     <td style={{ padding: '12px' }}>
                       {employee.duplicateHint && (
-                        <span style={{ color: '#dc3545', fontSize: '14px' }}>⚠️</span>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '12px',
+                          fontSize: '12px',
+                          fontWeight: 500,
+                          backgroundColor: '#ffc107',
+                          color: '#856404'
+                        }}>
+                          Dublette
+                        </span>
                       )}
                     </td>
                     {isAdmin && (

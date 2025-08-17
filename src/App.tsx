@@ -17,7 +17,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <div style={{ padding: 16 }}>
+        <div style={{ padding: 16, width: '100vw', boxSizing: 'border-box' }}>
           <nav style={{ marginBottom: 16, display: 'flex', gap: 16 }}>
             <Link to="/employees">Employee Management</Link>
             <Link to="/upload">Employee Data Upload</Link>
