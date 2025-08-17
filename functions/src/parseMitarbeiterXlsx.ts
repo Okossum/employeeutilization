@@ -12,8 +12,10 @@ import {
 } from './identity';
 
 // Firebase Admin initialisieren
-if (!initializeApp.length) {
+try {
   initializeApp();
+} catch (error) {
+  // App already initialized
 }
 
 const storage = getStorage();

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getFirestore, collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from 'react-hot-toast';
+import { createTestEmployees } from '../utils/testData';
 
 interface Employee {
   id: string;
@@ -211,7 +212,22 @@ const AdminEmployees: React.FC = () => {
     <div style={{ padding: 16, maxWidth: 1400 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 28, fontWeight: 600 }}>Mitarbeiter-Verwaltung</h1>
-
+        {isAdmin && employees.length === 0 && (
+          <button
+            onClick={createTestEmployees}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              fontSize: 16,
+              cursor: 'pointer',
+            }}
+          >
+            Test-Mitarbeiter erstellen
+          </button>
+        )}
       </div>
 
       {/* Tabs */}

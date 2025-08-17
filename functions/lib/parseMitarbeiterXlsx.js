@@ -8,8 +8,11 @@ const XLSX = require("xlsx");
 const firebase_functions_1 = require("firebase-functions");
 const identity_1 = require("./identity");
 // Firebase Admin initialisieren
-if (!app_1.initializeApp.length) {
+try {
     (0, app_1.initializeApp)();
+}
+catch (error) {
+    // App already initialized
 }
 const storage = (0, storage_1.getStorage)();
 const db = (0, firestore_1.getFirestore)();
