@@ -61,17 +61,44 @@ export default function Overview() {
   const currentWeek = getISOWeek(new Date());
   const currentYear = getISOWeekYear(new Date());
 
-  // Week ranges - FIXED: KW27-KW34 (7 past weeks + current week) with YY/WW format
-  const pastWeeks = Array.from({ length: 8 }, (_, i) => {
-    const week = currentWeek - 7 + i; // Changed from -8 to -7 to include current week
-    const year = week > 0 ? currentYear : currentYear - 1;
-    const adjustedWeek = week > 0 ? week : 52 + week;
-    return { 
-      year, 
-      week: adjustedWeek, 
-      label: formatJJWW(year, adjustedWeek) // ✅ FIXED: Use YY/WW format like other views
-    };
-  });
+  // Week ranges - FIXED: Use plan-based weeks like WorkloadView
+  const pastWeeks = useMemo(() => {
+    // If we have workload data, extract actual weeks from the data
+    if (workloadData.length > 0 && workloadData[0].weeklyPercent.length > 0) {
+      // Get unique weeks from workload data and sort them
+      const allWeeks = workloadData.flatMap(entry => 
+        entry.weeklyPercent.map(wp => ({ year: wp.isoYear, week: wp.isoWeek }))
+      );
+      
+      const uniqueWeeks = Array.from(
+        new Set(allWeeks.map(w => `${w.year}-${w.week}`))
+      )
+      .map(key => {
+        const [year, week] = key.split('-').map(Number);
+        return { year, week };
+      })
+      .sort((a, b) => a.year !== b.year ? a.year - b.year : a.week - b.week)
+      .slice(-8); // Take last 8 weeks (most recent)
+      
+      return uniqueWeeks.map(({ year, week }) => ({
+        year,
+        week,
+        label: formatJJWW(year, week)
+      }));
+    }
+    
+    // Fallback: use current week calculation
+    return Array.from({ length: 8 }, (_, i) => {
+      const week = currentWeek - 7 + i;
+      const year = week > 0 ? currentYear : currentYear - 1;
+      const adjustedWeek = week > 0 ? week : 52 + week;
+      return { 
+        year, 
+        week: adjustedWeek, 
+        label: formatJJWW(year, adjustedWeek)
+      };
+    });
+  }, [workloadData, currentWeek, currentYear]);
 
   // ✅ FIXED: Calculate future weeks based on latest plan's start week
   const futureWeeks = useMemo(() => {
@@ -111,6 +138,8 @@ export default function Overview() {
     loadData();
   }, []);
 
+
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -124,6 +153,7 @@ export default function Overview() {
       );
       
       const workloadSnapshot = await getDocs(workloadQuery);
+      console.log('🔧 DEBUG: Workload snapshot:', workloadSnapshot.docs.length, 'plans found');
       if (!workloadSnapshot.empty) {
         const planDoc = workloadSnapshot.docs[0];
         const entriesQuery = query(
@@ -137,6 +167,7 @@ export default function Overview() {
           ...doc.data()
         })) as WorkloadEntry[];
         
+        console.log('🔧 DEBUG: Setting workload data:', entries.length, 'entries');
         setWorkloadData(entries);
       }
 
@@ -197,7 +228,7 @@ export default function Overview() {
       
       setUtilizationData(transformedUtilization);
       
-      // DEBUG: Log the loaded data
+      // DEBUG: Log the loaded data  
       console.log('🔧 DEBUG Overview loaded data:', {
         workloadEntries: workloadData.length,
         employeeEntries: employeeData.length,

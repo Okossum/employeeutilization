@@ -71,3 +71,4 @@ export function nameKeyFromRaw(rawName: string): string {
   const { last, first } = splitName(rawName);
   return nameKey(last, first);
 }
+

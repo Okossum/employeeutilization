@@ -260,3 +260,4 @@ describe('Integration scenarios', () => {
     expect(summary).toContain('Found 2 triplet(s)');
   });
 });
+

@@ -182,3 +182,4 @@ describe('Edge cases and year transitions', () => {
     expect(result.isoYear).toBeGreaterThanOrEqual(2024);
   });
 });
+

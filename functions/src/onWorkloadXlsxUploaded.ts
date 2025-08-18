@@ -76,10 +76,11 @@ export function parseKWHeader(headerValue: string): number | null {
     return (weekNum >= 1 && weekNum <= 53) ? weekNum : null;
   }
   
-  // Format 2: "KW YY/XX" (e.g., "KW 25/01") - use the first part (YY) as week number
+  // Format 2: "KW YY/XX" (e.g., "KW 25/01") - use the second part (XX) as week number
+  // First number (YY) is year, second number (XX) is the actual week number
   const kwMatch2 = trimmed.match(/^KW\s*(\d+)\/(\d+)$/i);
   if (kwMatch2) {
-    const weekNum = parseInt(kwMatch2[1], 10); // ✅ FIXED: Use the first number (YY) as week
+    const weekNum = parseInt(kwMatch2[2], 10); // ✅ FIXED: Use the second number (XX) as week
     return (weekNum >= 1 && weekNum <= 53) ? weekNum : null;
   }
   

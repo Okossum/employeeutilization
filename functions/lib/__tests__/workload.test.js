@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-// parseKWHeader is now internal function, testing through detectKWColumns instead
+// Import parseKWHeader for testing
+const { parseKWHeader } = require("../onWorkloadXlsxUploaded");
 const normalize_1 = require("../lib/normalize");
 describe('Workload Import Logic', () => {
     describe('parseKWHeader', () => {
@@ -28,6 +29,16 @@ describe('Workload Import Logic', () => {
             expect(parseKWHeader('KW 0')).toBeNull();
             expect(parseKWHeader('KW 54')).toBeNull();
             expect(parseKWHeader('KW -1')).toBeNull();
+        });
+        
+        it('should parse KW YY/XX format correctly', () => {
+            // Format: "KW YY/XX" where YY is year and XX is week number
+            expect(parseKWHeader('KW 25/01')).toBe(1);   // KW 1 from year 2025
+            expect(parseKWHeader('KW 25/33')).toBe(33);  // KW 33 from year 2025
+            expect(parseKWHeader('KW 24/52')).toBe(52);  // KW 52 from year 2024
+            expect(parseKWHeader('KW 25/53')).toBe(53);  // KW 53 from year 2025
+            expect(parseKWHeader('KW 25/00')).toBeNull(); // Invalid week 0
+            expect(parseKWHeader('KW 25/54')).toBeNull(); // Invalid week 54
         });
     });
     describe('Header Detection', () => {

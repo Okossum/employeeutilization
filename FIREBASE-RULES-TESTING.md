@@ -201,3 +201,4 @@ firebase firestore:rules:validate
 - [Firebase Security Rules Dokumentation](https://firebase.google.com/docs/rules)
 - [Emulator Suite Dokumentation](https://firebase.google.com/docs/emulator-suite)
 - [Rules Unit Testing](https://firebase.google.com/docs/rules/unit-tests)
+

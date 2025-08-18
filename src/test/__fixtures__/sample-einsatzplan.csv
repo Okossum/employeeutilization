@@ -4,3 +4,4 @@ Name,CC,LoB,Bereich,Team,Geschäftsstelle,akt. Einsatzort,LBS,Kompetenz,Angebote
 "Schmidt, Thomas",CC DE-BER DEV,Technology,Backend Development,API Team,Berlin,Berlin,Principal,Java Spring,Client C,false,OV125,OP458,Project Theta,0,Berlin,Project Iota,100,Berlin,Project Kappa,25,Berlin
 "Weiß, Julia",CC DE-BER DEV,Technology,Data Science,ML Team,Berlin,Remote,Senior,Python ML,Client D,true,OV126,OP459,Project Lambda,45,Remote,Project Mu,20,Remote,,40,Remote
 "Duplicate, Test",CC AT-MUC CON,Technology,Testing,QA Team,München,München,Junior,Test Automation,Client E,true,OV127,OP460,Project Nu,60,Munich,Project Xi,80,Munich,Project Omicron,15,Munich
+

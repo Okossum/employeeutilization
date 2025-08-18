@@ -199,3 +199,5 @@ export default function DebugConsole({ isOpen, onToggle }: DebugConsoleProps) {
     </div>
   );
 }
+
+

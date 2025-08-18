@@ -162,3 +162,4 @@ describe('nameKeyFromRaw', () => {
     expect(nameKeyFromRaw('Schäfer-Gümbel, Thorsten')).toBe('schaefer-guembel|thorsten');
   });
 });
+

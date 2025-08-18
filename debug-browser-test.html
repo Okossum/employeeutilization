@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Debug Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .test-section { background: white; margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .success { background: #d4edda; border-left: 4px solid #28a745; }
+        .error { background: #f8d7da; border-left: 4px solid #dc3545; }
+        .info { background: #d1ecf1; border-left: 4px solid #17a2b8; }
+        button { padding: 10px 15px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .log { background: #f8f9fa; padding: 10px; border-radius: 3px; margin: 5px 0; white-space: pre-wrap; font-size: 12px; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Browser Debug Test</h1>
+    <p>This page will test the actual React app directly in the browser.</p>
+    
+    <div class="test-section info">
+        <h3>Step 1: Open React App</h3>
+        <p>Click the button below to open the EinsatzplanView in a new tab with debug console open:</p>
+        <button onclick="openDebugApp()">🚀 Open Einsatzplan View</button>
+        <button onclick="openDashboard()">🏠 Open Dashboard</button>
+        <button onclick="openLogin()">🔐 Open Login</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>Step 2: Debug Instructions</h3>
+        <div class="log">
+After opening the React app:
+
+1. Press F12 to open Developer Tools
+2. Go to the Console tab
+3. Look for any RED error messages
+4. Go to the Network tab
+5. Check if Firebase requests are failing
+6. Check the Elements tab to see if data is rendered but hidden
+
+Common issues to look for:
+- Authentication errors
+- Firebase permission denied
+- JavaScript errors preventing rendering
+- CSS hiding the data
+- React routing issues
+
+If you see data in the Elements tab but not visually, it's a CSS problem.
+If you see no data in Elements but Firebase requests succeed, it's a React rendering problem.
+If Firebase requests fail, it's an authentication or permissions problem.
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Step 3: Direct Firebase Test</h3>
+        <p>Click below to test Firebase directly in this page:</p>
+        <button onclick="testFirebaseHere()">🔥 Test Firebase Connection</button>
+        <div id="firebase-result" class="log" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Step 4: Manual Test Commands</h3>
+        <p>Copy these commands into the React app's browser console:</p>
+        <div class="log">
+// Test if React app is loaded
+console.log('React App Check:', !!window.React || !!document.querySelector('#root'));
+
+// Test if Firebase is loaded
+console.log('Firebase Check:', !!window.firebase);
+
+// Check for errors
+console.log('JS Errors:', window.jsErrors || 'None captured');
+
+// Check authentication
+if (window.firebase && window.firebase.auth) {
+  console.log('Auth User:', window.firebase.auth().currentUser);
+}
+
+// Check if data is in DOM but hidden
+const tableRows = document.querySelectorAll('tbody tr');
+console.log('Table rows found:', tableRows.length);
+if (tableRows.length > 0) {
+  const firstRow = tableRows[0];
+  console.log('First row content:', firstRow.textContent);
+  console.log('First row style:', window.getComputedStyle(firstRow).display);
+}
+        </div>
+    </div>
+
+    <script>
+        function openDebugApp() {
+            window.open('http://localhost:5173/einsatzplan/view', '_blank');
+            setTimeout(() => {
+                alert('Developer Tools öffnen (F12) und Console/Network tabs prüfen!');
+            }, 1000);
+        }
+        
+        function openDashboard() {
+            window.open('http://localhost:5173/', '_blank');
+        }
+        
+        function openLogin() {
+            window.open('http://localhost:5173/login', '_blank');
+        }
+        
+        async function testFirebaseHere() {
+            const resultDiv = document.getElementById('firebase-result');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Testing Firebase connection...';
+            
+            try {
+                // Import Firebase modules directly
+                const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js');
+                const { getFirestore, collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+                
+                const firebaseConfig = {
+                    apiKey: "AIzaSyDczsAzylUqlnqUxm5Ld5yKlp4IuDSBbi0",
+                    authDomain: "employee-utilization.firebaseapp.com",
+                    projectId: "employee-utilization",
+                    storageBucket: "employee-utilization.firebasestorage.app",
+                    messagingSenderId: "301802878680",
+                    appId: "1:301802878680:web:3c77e7e1c9d1c5b5f1a0c4"
+                };
+                
+                const app = initializeApp(firebaseConfig);
+                const db = getFirestore(app);
+                
+                const plansRef = collection(db, 'plans');
+                const plansSnapshot = await getDocs(plansRef);
+                
+                resultDiv.textContent = `✅ Firebase works! Found ${plansSnapshot.size} plans.\\nThis means the issue is in the React app, not Firebase.`;
+                
+            } catch (error) {
+                resultDiv.textContent = `❌ Firebase error: ${error.message}\\nThis could be the root cause!`;
+            }
+        }
+        
+        // Capture any errors on this page
+        window.addEventListener('error', (e) => {
+            console.error('Page error:', e.error);
+        });
+    </script>
+</body>
+</html>

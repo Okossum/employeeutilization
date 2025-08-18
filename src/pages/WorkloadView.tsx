@@ -336,7 +336,7 @@ export default function WorkloadView() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6">
             <div className="flex">
               <div className="flex-shrink-0">

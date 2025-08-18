@@ -136,3 +136,4 @@ export function createTripletSummary(result: TripletDetectionResult): string {
   
   return `Found ${result.count} triplet(s):\n${summaries.join('\n')}`;
 }
+
