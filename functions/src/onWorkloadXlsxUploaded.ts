@@ -76,10 +76,10 @@ export function parseKWHeader(headerValue: string): number | null {
     return (weekNum >= 1 && weekNum <= 53) ? weekNum : null;
   }
   
-  // Format 2: "KW YY/XX" (e.g., "KW 25/01") - use the week part (XX)
+  // Format 2: "KW YY/XX" (e.g., "KW 25/01") - use the first part (YY) as week number
   const kwMatch2 = trimmed.match(/^KW\s*(\d+)\/(\d+)$/i);
   if (kwMatch2) {
-    const weekNum = parseInt(kwMatch2[2], 10); // Use the week part (second number)
+    const weekNum = parseInt(kwMatch2[1], 10); // ✅ FIXED: Use the first number (YY) as week
     return (weekNum >= 1 && weekNum <= 53) ? weekNum : null;
   }
   
@@ -94,18 +94,18 @@ export function parseKWHeader(headerValue: string): number | null {
 function findKWColumns(headers: string[]): Array<{ index: number; isoWeek: number }> {
   const kwColumns: Array<{ index: number; isoWeek: number }> = [];
   
-  logger.info('🔍 [findKWColumns] Analyzing headers:', headers);
-  
-  for (let i = 0; i < headers.length; i++) {
-    const header = headers[i];
-    const weekNum = parseKWHeader(header);
-    logger.info(`🔍 [findKWColumns] Header ${i}: "${header}" -> week: ${weekNum}`);
+      logger.info('🔍 [findKWColumns] Analyzing headers:', headers);
     
-    if (weekNum !== null) {
-      kwColumns.push({ index: i, isoWeek: weekNum });
-      logger.info(`✅ [findKWColumns] Added KW column: index ${i}, week ${weekNum}`);
+    for (let i = 0; i < headers.length; i++) {
+      const header = headers[i];
+      const weekNum = parseKWHeader(header);
+      logger.info(`🔍 [findKWColumns] Header ${i}: "${header}" -> week: ${weekNum}`);
+      
+      if (weekNum !== null) {
+        kwColumns.push({ index: i, isoWeek: weekNum });
+        logger.info(`✅ [findKWColumns] Added KW column: index ${i}, week ${weekNum}, header: "${header}"`);
+      }
     }
-  }
   
   logger.info(`📊 [findKWColumns] Found ${kwColumns.length} KW columns:`, kwColumns);
   return kwColumns;
@@ -268,12 +268,11 @@ async function processRow(
     const project = null;   // Not available in this structure
     const customer = null;  // Not available in this structure
     
-    // Process weekly percent from KW columns (starting from column F, index 5)
+    // Process weekly percent from KW columns 
     const weeklyPercent: WeeklyPercent[] = [];
     for (const kwCol of kwColumns) {
-      // KW columns start from index 5 (column F), not from kwCol.index
-      const actualColumnIndex = kwCol.index + 5;
-      const percent = parseHoursValue(row[actualColumnIndex]);
+      // ✅ FIXED: Use kwCol.index directly - it already contains the correct column position
+      const percent = parseHoursValue(row[kwCol.index]);
       if (percent !== null) {
         weeklyPercent.push({
           isoYear: currentYear,
